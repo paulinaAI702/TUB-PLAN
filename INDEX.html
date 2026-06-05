@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>吸煙管供需分配系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+:root{--bg:#F5F4F0;--bg2:#ECEAE4;--bg3:#E2E0D8;--surface:#FFFFFF;--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);--text:#1A1A18;--text2:#5A5A56;--text3:#9A9A94;--blue:#185FA5;--blue-bg:#E6F1FB;--blue-text:#0C447C;--green:#0F6E56;--green-bg:#EAF3DE;--green-text:#27500A;--red:#A32D2D;--red-bg:#FCEBEB;--warn-bg:#FFF8E1;--warn-text:#7A5000;--radius:8px;--radius-lg:12px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans TC',sans-serif;font-size:13px;background:var(--bg);color:var(--text);min-height:100vh}
+.shell{display:flex;min-height:100vh}
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:0.5px solid var(--border2);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:0.5px solid var(--border)}
+.logo-mark{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text3);letter-spacing:0.08em;margin-bottom:4px}
+.logo-title{font-size:14px;font-weight:500;line-height:1.3}
+.sidebar-nav{padding:12px 10px;flex:1}
+.nav-section{font-size:10px;font-weight:500;letter-spacing:0.1em;color:var(--text3);padding:8px 10px 4px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:background 0.15s,color 0.15s;border:none;background:none;width:100%;text-align:left;font-family:'IBM Plex Sans TC',sans-serif}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--bg2);color:var(--text);font-weight:500}
+.nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.sidebar-footer{padding:14px 20px;border-top:0.5px solid var(--border);font-size:11px;color:var(--text3)}
+.main{flex:1;padding:28px 32px;max-width:1200px;overflow-x:hidden}
+.page{display:none}.page.active{display:block}
+.page-header{margin-bottom:24px}
+.page-title{font-size:20px;font-weight:500;margin-bottom:4px}
+.page-desc{font-size:13px;color:var(--text2)}
+.card{background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:14px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border-radius:var(--radius);padding:14px 16px}
+.stat-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:500;font-family:'IBM Plex Mono',monospace}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.btn{padding:7px 14px;font-size:12px;font-family:'IBM Plex Sans TC',sans-serif;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);cursor:pointer;transition:background 0.15s;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--bg2)}
+.btn-primary{background:var(--text);color:var(--surface);border-color:var(--text)}
+.btn-primary:hover{opacity:0.85;background:var(--text)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-green:hover{opacity:0.85;background:var(--green)}
+.actions{display:flex;gap:8px;margin-top:16px;align-items:center;flex-wrap:wrap}
+.mode-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.mode-tab{padding:6px 14px;font-size:12px;border-radius:20px;border:0.5px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-family:'IBM Plex Sans TC',sans-serif;transition:all 0.15s}
+.mode-tab.active{background:var(--text);color:var(--surface);border-color:var(--text)}
+.upload-zone{border:1px dashed var(--border2);border-radius:var(--radius-lg);padding:28px;text-align:center;cursor:pointer;transition:background 0.15s;color:var(--text2)}
+.upload-zone:hover{background:var(--bg)}
+.upload-zone.success{border-color:var(--green);background:var(--green-bg)}
+.upload-icon{font-size:28px;margin-bottom:8px}
+.upload-hint{font-size:11px;color:var(--text3);margin-top:6px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:6px 10px;border:0.5px solid var(--border);text-align:right;white-space:nowrap}
+th{background:var(--bg2);font-weight:500;font-size:11px;color:var(--text2)}
+th.lbl,td.lbl{text-align:left}
+td.sublbl{text-align:left;color:var(--text2);padding-left:18px;font-size:11px}
+tr:hover td{background:var(--bg)}
+.sec-hdr td{background:#1e1e1e;color:#ccc;font-weight:500;font-size:11px;letter-spacing:0.04em;border-color:#1e1e1e}
+.cy-text{color:var(--green);font-weight:500}
+.cti-text{color:var(--blue);font-weight:500}
+.bal-ok{background:var(--green-bg);color:var(--green-text);font-weight:500;font-family:'IBM Plex Mono',monospace}
+.bal-warn{background:var(--warn-bg);color:var(--warn-text);font-weight:500;font-family:'IBM Plex Mono',monospace}
+.bal-neg{background:var(--red-bg);color:var(--red);font-weight:500;font-family:'IBM Plex Mono',monospace}
+.inv-cell{background:var(--bg2);font-family:'IBM Plex Mono',monospace}
+.mono{font-family:'IBM Plex Mono',monospace}
+.demand-grid{display:grid;grid-template-columns:130px repeat(8,1fr);gap:4px;align-items:center;margin-bottom:3px}
+.demand-grid input{padding:5px 6px;font-size:11px;text-align:right;font-family:'IBM Plex Mono',monospace;width:100%;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)}
+.demand-grid input:focus{outline:none;border-color:var(--blue)}
+.row-lbl{font-size:11px;color:var(--text2);font-weight:500}
+.badge{display:inline-block;padding:1px 5px;border-radius:4px;font-size:10px;margin-left:4px}
+.badge-cy{background:var(--green-bg);color:var(--green-text)}
+.badge-cti{background:var(--blue-bg);color:var(--blue-text)}
+.month-hdr{font-size:10px;color:var(--text3);text-align:center;font-family:'IBM Plex Mono',monospace}
+
+/* Supply grid */
+.supply-section{margin-bottom:20px}
+.supply-section-title{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg2);border-radius:var(--radius);display:flex;align-items:center;gap:6px}
+.param-grid{display:grid;grid-template-columns:140px repeat(8,1fr);gap:4px;align-items:center;margin-bottom:4px}
+.param-grid input{padding:5px 6px;font-size:11px;text-align:right;font-family:'IBM Plex Mono',monospace;width:100%;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)}
+.param-grid input:focus{outline:none;border-color:var(--green)}
+.param-grid input.from-sap{background:var(--green-bg);border-color:var(--green)}
+.param-grid input.manual{background:var(--surface)}
+.param-lbl{font-size:11px;color:var(--text2);font-weight:500}
+.result-row{display:grid;grid-template-columns:140px repeat(8,1fr);gap:4px;align-items:center;margin-bottom:4px}
+.result-cell{padding:5px 8px;font-size:11px;font-family:'IBM Plex Mono',monospace;text-align:right;border-radius:var(--radius);background:var(--bg2);color:var(--text);font-weight:500}
+.result-cell.from-sap{background:var(--green-bg);color:var(--green-text)}
+.result-cell.manual-calc{background:var(--blue-bg);color:var(--blue-text)}
+.legend-row{display:flex;gap:16px;font-size:11px;color:var(--text3);margin-bottom:12px;flex-wrap:wrap}
+.legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+
+/* Order table */
+.order-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.order-tbl th,.order-tbl td{padding:6px 10px;border-bottom:0.5px solid var(--border);text-align:left}
+.order-tbl th{background:var(--bg2);font-weight:500;font-size:11px;color:var(--text2)}
+.order-tbl tr:hover td{background:var(--bg)}
+.badge-source-cy{background:var(--green-bg);color:var(--green-text);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500}
+.badge-source-cti{background:var(--blue-bg);color:var(--blue-text);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500}
+.badge-series{background:var(--bg2);color:var(--text2);padding:2px 6px;border-radius:4px;font-size:10px}
+
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:12px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.alert-warn{background:var(--warn-bg);color:var(--warn-text);border:0.5px solid #E0C040}
+.alert-ok{background:var(--green-bg);color:var(--green-text);border:0.5px solid #90C060}
+.alert-info{background:var(--blue-bg);color:var(--blue-text);border:0.5px solid #85B7EB}
+.settings-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.settings-label{flex:1}
+.settings-label strong{font-size:13px;font-weight:500;display:block;margin-bottom:2px}
+.settings-label span{font-size:11px;color:var(--text3)}
+.settings-row input[type=number],.settings-row input[type=text]{width:130px;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)}
+.settings-row input:focus{outline:none;border-color:var(--blue)}
+.rules{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.rule-chip{padding:5px 10px;border-radius:20px;font-size:11px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2)}
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.empty-title{font-size:14px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.empty-desc{font-size:12px}
+.text-muted{color:var(--text3);font-size:11px;margin-top:8px}
+.divider{height:0.5px;background:var(--border);margin:16px 0}
+.tag-sap{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:var(--green-bg);color:var(--green-text);margin-left:4px}
+.tag-calc{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:var(--blue-bg);color:var(--blue-text);margin-left:4px}
+.tag-manual{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:var(--bg3);color:var(--text2);margin-left:4px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">TUB PLANNER</div>
+    <div class="logo-title">吸煙管供需<br>分配系統</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">輸入</div>
+    <button class="nav-item active" onclick="showPage('demand')" id="nav-demand"><span class="nav-icon">📋</span>需求輸入</button>
+    <button class="nav-item" onclick="showPage('supply')" id="nav-supply"><span class="nav-icon">⚙️</span>供給設定</button>
+    <div class="nav-section" style="margin-top:8px">結果</div>
+    <button class="nav-item" onclick="showPage('balance')" id="nav-balance"><span class="nav-icon">📊</span>供需平衡表</button>
+    <button class="nav-item" onclick="showPage('orders')" id="nav-orders"><span class="nav-icon">📑</span>工單分配清單</button>
+  </nav>
+  <div class="sidebar-footer">
+    <div>v2.0 · 2026</div>
+    <div style="margin-top:2px">資料存於本機瀏覽器</div>
+  </div>
+</aside>
+
+<main class="main">
+
+<!-- ── 需求輸入 ── -->
+<div class="page active" id="page-demand">
+  <div class="page-header">
+    <div class="page-title">需求輸入</div>
+    <div class="page-desc">支援三種輸入模式：手動輸入、上傳 TUB排程.xlsx、或從 SAP MHT 自動解析（OrdRes + DepReq）。</div>
+  </div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="modetab-manual" onclick="setDemandMode('manual')">手動輸入</button>
+    <button class="mode-tab" id="modetab-upload" onclick="setDemandMode('upload')">上傳 TUB排程.xlsx</button>
+    <button class="mode-tab" id="modetab-mht" onclick="setDemandMode('mht')">從 SAP MHT 解析</button>
+  </div>
+
+  <div id="panel-demand-manual">
+    <div class="card">
+      <div class="card-title">各產品月度需求（pcs）</div>
+      <div class="demand-grid" id="demand-hdr"></div>
+      <div id="demand-rows"></div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="calculate()">▶ 計算分配</button>
+        <button class="btn" onclick="resetDemand()">↺ 重設預設值</button>
+        <button class="btn" onclick="clearDemand()">✕ 清空</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-demand-upload" style="display:none">
+    <div class="card">
+      <div class="card-title">上傳 TUB排程.xlsx</div>
+      <div class="upload-zone" id="upload-zone-tub" onclick="document.getElementById('fileTUB').click()">
+        <div class="upload-icon">📂</div>
+        <div>點擊選擇 TUB排程.xlsx</div>
+        <div class="upload-hint">依「預計投料日期」加總，2026/05–2026/12</div>
+      </div>
+      <input type="file" id="fileTUB" accept=".xlsx" style="display:none" onchange="handleTUBFile(event)">
+      <div id="status-tub"></div>
+      <div class="actions"><button class="btn btn-primary" onclick="calculate()">▶ 計算分配</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">需求預覽</div>
+      <div class="demand-grid" id="demand-hdr2"></div>
+      <div id="demand-rows2"></div>
+    </div>
+  </div>
+
+  <div id="panel-demand-mht" style="display:none">
+    <div class="card">
+      <div class="card-title">從 SAP MHT 解析需求（OrdRes + DepReq）</div>
+      <div class="upload-zone" id="upload-zone-mht-d" onclick="document.getElementById('fileMHTd').click()">
+        <div class="upload-icon">📂</div>
+        <div>點擊選擇 SAP MHT 檔案</div>
+        <div class="upload-hint">自動讀取 OrdRes + DepReq，依日期加總</div>
+      </div>
+      <input type="file" id="fileMHTd" accept=".mht,.MHT" style="display:none" onchange="handleMHTDemand(event)">
+      <div id="status-mht-d"></div>
+      <div class="actions"><button class="btn btn-primary" onclick="calculate()">▶ 計算分配</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">需求預覽（ft）</div>
+      <div id="demand-mht-preview"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-desc">請上傳 MHT 檔案</div></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">分配規則</div>
+    <div class="rules">
+      <span class="rule-chip">🟢 PB224SV1 / PB224BV1 → CY 或 CTI</span>
+      <span class="rule-chip">🔵 PB424SV1 → CTI only（長線）</span>
+      <span class="rule-chip">🔵 PR524 系列（BJ）→ CTI only</span>
+      <span class="rule-chip">🔵 AE711 系列（ML）→ CTI only</span>
+      <span class="rule-chip">📅 6/24 前全部走 CTI</span>
+      <span class="rule-chip">⚡ CY 優先分配短線，不足由 CTI 補</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── 供給設定 ── -->
+<div class="page" id="page-supply">
+  <div class="page-header">
+    <div class="page-title">供給設定</div>
+    <div class="page-desc">上傳 SAP MHT 自動帶入供給量；SAP 無資料的月份可手動輸入或由 CY 參數自動計算。</div>
+  </div>
+
+  <!-- MHT Upload -->
+  <div class="card">
+    <div class="card-title">上傳 SAP MHT（自動解析 CTI + CY 供給）</div>
+    <div class="upload-zone" id="upload-zone-mht-s" onclick="document.getElementById('fileMHTs').click()">
+      <div class="upload-icon">📂</div>
+      <div>點擊選擇 SAP MHT 檔案</div>
+      <div class="upload-hint">PO項目（GR Date）→ CTI供給 ／ 工單（GR Date）→ CY供給 ／ 庫存 → 期初庫存</div>
+    </div>
+    <input type="file" id="fileMHTs" accept=".mht,.MHT" style="display:none" onchange="handleMHTSupply(event)">
+    <div id="status-mht-s"></div>
+  </div>
+
+  <!-- Basic settings -->
+  <div class="card">
+    <div class="card-title">基本設定</div>
+    <div class="settings-row">
+      <div class="settings-label"><strong>CTI 期初庫存（ft）</strong><span>從 SAP 庫存自動帶入，可手動修改</span></div>
+      <input type="number" id="init-inv" value="1943823" step="1000">
+    </div>
+    <div class="settings-row" style="border:none">
+      <div class="settings-label"><strong>CY 開始供給日期</strong><span>此日期前工單全部指定 CTI</span></div>
+      <input type="text" id="cy-start-date" value="2026-06-24">
+    </div>
+  </div>
+
+  <!-- CTI Supply -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin:0">CTI 月供給量（ft）</div>
+      <div style="font-size:11px;color:var(--text3)">
+        <span class="legend-dot" style="background:var(--green)"></span>SAP自動帶入
+        <span class="legend-dot" style="background:var(--bg3);margin-left:8px"></span>手動輸入
+      </div>
+    </div>
+    <div class="param-grid" id="cti-supply-hdr"></div>
+    <div class="param-grid" id="cti-supply-row"></div>
+    <div class="text-muted">灰底 = 手動輸入（SAP無資料）；綠底 = 從 SAP PO項目 自動帶入。有值皆可手動修改。</div>
+  </div>
+
+  <!-- CY Supply -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin:0">CY 押出機月產能</div>
+      <div style="font-size:11px;color:var(--text3)">
+        <span class="legend-dot" style="background:var(--green)"></span>SAP工單帶入
+        <span class="legend-dot" style="background:var(--blue-bg);border:1px solid var(--blue)"></span>參數自動計算
+        <span class="legend-dot" style="background:var(--bg3);margin-left:4px"></span>手動輸入
+      </div>
+    </div>
+
+    <div class="supply-section">
+      <div class="supply-section-title">⚙️ CY 計算參數（調整開機台數即可自動重算）</div>
+      <div class="param-grid" id="cy-param-hdr"></div>
+      <div id="cy-param-rows"></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3)">
+        公式：產速(ft/hr) × 每日工時 × 工作天數 × OEE × 開機台數 ÷ 60<br>
+        產速換算：m/min × 60min ÷ 0.3048 = ft/hr
+      </div>
+    </div>
+
+    <div class="supply-section">
+      <div class="supply-section-title">📊 CY 月產能結果（ft/month）</div>
+      <div class="param-grid" id="cy-result-hdr"></div>
+      <div class="result-row" id="cy-result-row"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="saveSupplyAndCalc()">▶ 儲存並重新計算</button>
+    <button class="btn" onclick="resetSupply()">↺ 重設預設值</button>
+  </div>
+</div>
+
+<!-- ── 供需平衡表 ── -->
+<div class="page" id="page-balance">
+  <div class="page-header">
+    <div class="page-title">供需平衡表</div>
+    <div class="page-desc">依需求與供給計算每月 CTI / CY 分配量與滾動結餘。</div>
+  </div>
+  <div id="balance-alerts"></div>
+  <div class="stats-grid" id="balance-stats"></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="card-title" style="margin:0">月度供需明細（K = 千 ft）</div>
+      <button class="btn btn-sm" onclick="exportExcel()">⬇ 匯出 Excel</button>
+    </div>
+    <div class="tbl-wrap">
+      <table id="balance-table"><tbody><tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">尚無資料</div><div class="empty-desc">請先完成需求輸入並計算分配</div></div></td></tr></tbody></table>
+    </div>
+    <div class="text-muted" id="balance-note"></div>
+  </div>
+</div>
+
+<!-- ── 工單分配 ── -->
+<div class="page" id="page-orders">
+  <div class="page-header">
+    <div class="page-title">工單分配清單</div>
+    <div class="page-desc">各產品月度工單應使用的吸煙管來源與替代料號。</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <select id="order-filter-month" onchange="renderOrders()" style="padding:6px 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:'IBM Plex Sans TC',sans-serif">
+        <option value="">全部月份</option>
+      </select>
+      <select id="order-filter-source" onchange="renderOrders()" style="padding:6px 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:'IBM Plex Sans TC',sans-serif">
+        <option value="">全部來源</option>
+        <option value="CY">CY 廠內</option>
+        <option value="CTI">CTI 廠外</option>
+      </select>
+    </div>
+    <button class="btn btn-sm" onclick="exportExcel()">⬇ 匯出 Excel</button>
+  </div>
+  <div class="card">
+    <div id="orders-content"><div class="empty-state"><div class="empty-icon">📑</div><div class="empty-title">尚無資料</div><div class="empty-desc">請先完成需求輸入並計算分配</div></div></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ── Constants ──
+const MONTHS = ['2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
+const MHDRS  = ['May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26'];
+
+const PRODUCTS = [
+  {id:'PB224SV1',series:'LS',cyOk:true, ft:9.996833, ref_cy:'P315200A0-00 + P315300A0-00', ref_cti:'P314000B0-00 + P314100B0-00'},
+  {id:'PB224BV1',series:'LS',cyOk:true, ft:9.996833, ref_cy:'P315200A0-00 + P315300A0-00', ref_cti:'P314000B0-00 + P314100B0-00'},
+  {id:'PB424SV1',series:'LS',cyOk:false,ft:14.996833,ref_cti:'P314000B0-00 + P314200B0-00'},
+  {id:'PR524SV2',series:'BJ',cyOk:false,ft:9.996,    ref_cti:'P307600A0-00'},
+  {id:'PR524SV4',series:'BJ',cyOk:false,ft:9.996,    ref_cti:'P307600A0-00'},
+  {id:'PR524BV2',series:'BJ',cyOk:false,ft:14.994,   ref_cti:'P307700A0-00 + P307600A0-00'},
+  {id:'PR524BV4',series:'BJ',cyOk:false,ft:14.994,   ref_cti:'P307700A0-00 + P307600A0-00'},
+  {id:'AE711SF1',series:'ML',cyOk:false,ft:10.038,   ref_cti:'P307300B0-00 + P307400B0-00(×2)'},
+  {id:'AE711SF2',series:'ML',cyOk:false,ft:14.702,   ref_cti:'P307300B0-00 + P307400B0-00(×3)'},
+];
+
+// MHT material ft/pc
+const MAT_FT = {
+  'P307300B0-00':8.5/12,'P307400B0-00':56/12,'P307600A0-00':60/12,'P307700A0-00':120/12,
+  'P314000B0-00':39.37/12,'P314100B0-00':80.64/12,'P314200B0-00':140.64/12,
+  'P315200A0-00':39.37/12,'P315300A0-00':80.64/12,'P315400A0-00':140.64/12,
+};
+const CTI_MATS = ['P307300B0-00','P307400B0-00','P307600A0-00','P307700A0-00','P314000B0-00','P314100B0-00','P314200B0-00'];
+const CY_MATS  = ['P315200A0-00','P315300A0-00','P315400A0-00'];
+
+// SAP product to PRODUCTS mapping for demand
+const SAP_PROD_MAP = {
+  'PB224SV1':'PB224SV1','PB224BV1':'PB224BV1','PB424SV1':'PB424SV1',
+  'PR524SV2':'PR524SV2','PR524SV4':'PR524SV4','PR524BV2':'PR524BV2','PR524BV4':'PR524BV4',
+  'AE711SF1':'AE711SF1','AE711SF2':'AE711SF2',
+};
+
+// Defaults
+const DEF_CTI = [155334,1602283,1754882,1602284,1525984,1831181,1922740,1922740];
+const DEF_CY_PARAMS = {
+  working_hrs: [24,24,24,24,24,24,24,24],
+  working_days:[0,21,20,21,20,20,21,22],
+  oee:         [0.661,0.661,0.661,0.704,0.738,0.738,0.738,0.738],
+  speed_m_min: [1.58,1.58,1.58,2.00,2.00,2.00,2.00,2.00],
+  machines:    [0,3,4,5,5,5,5,5],
+};
+const DEF_DEMAND = {
+  'PB224SV1':[12800,97600,76800,102400,96000,76800,12800,165960],
+  'PB224BV1':[0,19200,28800,48000,19200,38400,134400,0],
+  'PB424SV1':[13020,0,12960,0,25920,25920,0,12960],
+  'PR524SV2':[25600,48320,67200,64000,89600,88320,100440,61900],
+  'PR524SV4':[0,0,5760,32640,8160,8160,4920,33720],
+  'PR524BV2':[0,0,4800,0,0,9600,0,4800],
+  'PR524BV4':[0,7200,7200,0,0,0,0,0],
+  'AE711SF1':[0,0,10560,16000,8000,0,0,0],
+  'AE711SF2':[0,4320,4320,4320,8640,0,0,0],
+};
+
+// State
+let demandData = load('demand', JSON.parse(JSON.stringify(DEF_DEMAND)));
+let ctiSupply  = load('cti', [...DEF_CTI]);
+let cyParams   = load('cy_params', JSON.parse(JSON.stringify(DEF_CY_PARAMS)));
+let ctiFromSAP = load('cti_sap', Array(8).fill(false)); // which months came from SAP
+let cyFromSAP  = load('cy_sap',  Array(8).fill(false));
+let calcResult = null;
+let orderData  = [];
+let demandMode = 'manual';
+
+function load(k,d){try{const v=localStorage.getItem('tub_'+k);return v?JSON.parse(v):d;}catch{return d;}}
+function save(k,v){try{localStorage.setItem('tub_'+k,JSON.stringify(v));}catch{}}
+
+// ── Navigation ──
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+}
+
+// ── Demand mode ──
+function setDemandMode(m){
+  demandMode=m;
+  ['manual','upload','mht'].forEach(x=>{
+    document.getElementById('panel-demand-'+x).style.display=x===m?'block':'none';
+    document.getElementById('modetab-'+x).classList.toggle('active',x===m);
+  });
+  if(m==='upload'||m==='mht') buildPreviewGrid();
+}
+
+// ── Demand grid ──
+function buildDemandGrid(){
+  ['demand-hdr','demand-hdr2'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    el.innerHTML='<div></div>';
+    MHDRS.forEach(m=>{const d=document.createElement('div');d.className='month-hdr';d.textContent=m;el.appendChild(d);});
+  });
+  ['demand-rows','demand-rows2'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    el.innerHTML='';
+    PRODUCTS.forEach(p=>{
+      const row=document.createElement('div'); row.className='demand-grid'; row.style.marginBottom='3px';
+      const lbl=document.createElement('div'); lbl.className='row-lbl';
+      lbl.innerHTML=p.id+`<span class="badge ${p.cyOk?'badge-cy':'badge-cti'}">${p.cyOk?'CY/CTI':'CTI'}</span>`;
+      row.appendChild(lbl);
+      MONTHS.forEach((m,i)=>{
+        const inp=document.createElement('input'); inp.type='number'; inp.min=0; inp.step=1;
+        inp.value=(demandData[p.id]||[])[i]||0;
+        if(id==='demand-rows2'){inp.readOnly=true;inp.style.background='var(--bg2)';}
+        inp.dataset.prod=p.id; inp.dataset.mi=i;
+        inp.addEventListener('change',e=>{
+          if(!demandData[e.target.dataset.prod]) demandData[e.target.dataset.prod]=Array(8).fill(0);
+          demandData[e.target.dataset.prod][parseInt(e.target.dataset.mi)]=parseFloat(e.target.value)||0;
+          save('demand',demandData);
+        });
+        row.appendChild(inp);
+      });
+      el.appendChild(row);
+    });
+  });
+}
+function buildPreviewGrid(){buildDemandGrid();}
+function resetDemand(){demandData=JSON.parse(JSON.stringify(DEF_DEMAND));save('demand',demandData);buildDemandGrid();}
+function clearDemand(){PRODUCTS.forEach(p=>{demandData[p.id]=Array(8).fill(0);});save('demand',demandData);buildDemandGrid();}
+
+// ── Supply grid ──
+function buildSupplyGrid(){
+  // CTI headers
+  const ctiHdr=document.getElementById('cti-supply-hdr');
+  ctiHdr.innerHTML='<div class="param-lbl">CTI (ft)</div>';
+  MHDRS.forEach(m=>{const d=document.createElement('div');d.className='month-hdr';d.textContent=m;ctiHdr.appendChild(d);});
+
+  // CTI row
+  const ctiRow=document.getElementById('cti-supply-row');
+  ctiRow.innerHTML='<div></div>';
+  MONTHS.forEach((m,i)=>{
+    const inp=document.createElement('input'); inp.type='number'; inp.min=0; inp.step=1000;
+    inp.value=Math.round(ctiSupply[i]);
+    inp.className=ctiFromSAP[i]?'from-sap':'manual';
+    inp.title=ctiFromSAP[i]?'SAP自動帶入（可修改）':'手動輸入';
+    inp.addEventListener('change',e=>{ctiSupply[i]=parseFloat(e.target.value)||0;save('cti',ctiSupply);});
+    ctiRow.appendChild(inp);
+  });
+
+  // CY param headers
+  const cyHdr=document.getElementById('cy-param-hdr');
+  cyHdr.innerHTML='<div></div>';
+  MHDRS.forEach(m=>{const d=document.createElement('div');d.className='month-hdr';d.textContent=m;cyHdr.appendChild(d);});
+
+  // CY param rows
+  const paramRows=document.getElementById('cy-param-rows');
+  paramRows.innerHTML='';
+  const paramDefs=[
+    {key:'working_hrs',label:'工時/天',step:1,decimals:0},
+    {key:'working_days',label:'工作天數',step:1,decimals:0},
+    {key:'oee',label:'OEE (%)',step:0.001,decimals:3,scale:100,suffix:'%'},
+    {key:'speed_m_min',label:'產速 (m/min)',step:0.01,decimals:2},
+    {key:'machines',label:'開機台數 ★',step:1,decimals:0},
+  ];
+  paramDefs.forEach(pd=>{
+    const row=document.createElement('div'); row.className='param-grid'; row.style.marginBottom='3px';
+    const lbl=document.createElement('div'); lbl.className='param-lbl';
+    lbl.innerHTML=pd.label+(pd.key==='machines'?'<span class="tag-calc"> 主要參數</span>':'');
+    row.appendChild(lbl);
+    MONTHS.forEach((m,i)=>{
+      const inp=document.createElement('input'); inp.type='number'; inp.step=pd.step;
+      const val=cyParams[pd.key][i];
+      inp.value=pd.scale?(val*pd.scale).toFixed(pd.decimals):val.toFixed?val.toFixed(pd.decimals):val;
+      inp.dataset.key=pd.key; inp.dataset.mi=i; inp.dataset.scale=pd.scale||1;
+      inp.addEventListener('change',e=>{
+        const scale=parseFloat(e.target.dataset.scale)||1;
+        cyParams[e.target.dataset.key][parseInt(e.target.dataset.mi)]=(parseFloat(e.target.value)||0)/scale;
+        save('cy_params',cyParams);
+        updateCYResult();
+      });
+      row.appendChild(inp);
+    });
+    paramRows.appendChild(row);
+  });
+
+  // CY result headers
+  const cyResHdr=document.getElementById('cy-result-hdr');
+  cyResHdr.innerHTML='<div class="param-lbl">產能 (ft/month)</div>';
+  MHDRS.forEach(m=>{const d=document.createElement('div');d.className='month-hdr';d.textContent=m;cyResHdr.appendChild(d);});
+
+  updateCYResult();
+}
+
+function updateCYResult(){
+  const row=document.getElementById('cy-result-row');
+  row.innerHTML='<div class="param-lbl"></div>';
+  const results=calcCYCapacity();
+  MONTHS.forEach((m,i)=>{
+    const cell=document.createElement('div');
+    cell.className='result-cell '+(cyFromSAP[i]?'from-sap':'manual-calc');
+    cell.title=cyFromSAP[i]?'SAP工單帶入':'由參數計算';
+    cell.textContent=cyFromSAP[i]?Math.round(cyFromSAP[i]).toLocaleString():Math.round(results[i]).toLocaleString();
+    row.appendChild(cell);
+  });
+}
+
+function calcCYCapacity(){
+  return MONTHS.map((m,i)=>{
+    if(cyFromSAP[i]) return cyFromSAP[i];
+    const hrs=cyParams.working_hrs[i]||0;
+    const days=cyParams.working_days[i]||0;
+    const oee=cyParams.oee[i]||0;
+    const spd=cyParams.speed_m_min[i]||0;
+    const mach=cyParams.machines[i]||0;
+    const ft_hr=spd*60/0.3048;
+    return ft_hr*hrs*days*oee*mach;
+  });
+}
+
+function getCYSupply(){
+  return MONTHS.map((m,i)=>cyFromSAP[i]||calcCYCapacity()[i]);
+}
+
+function resetSupply(){
+  ctiSupply=[...DEF_CTI]; cyParams=JSON.parse(JSON.stringify(DEF_CY_PARAMS));
+  ctiFromSAP=Array(8).fill(false); cyFromSAP=Array(8).fill(false);
+  save('cti',ctiSupply); save('cy_params',cyParams);
+  save('cti_sap',ctiFromSAP); save('cy_sap',cyFromSAP);
+  buildSupplyGrid();
+}
+
+function saveSupplyAndCalc(){
+  save('cti',ctiSupply); save('cy_params',cyParams);
+  calculate(); showPage('balance');
+}
+
+// ── MHT Parser ──
+function parseMHT(text){
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(text,'text/html');
+  const rows=doc.querySelectorAll('table tr');
+  const result={cti:{},cy:{},inventory:0,demand:{}};
+  PRODUCTS.forEach(p=>{result.demand[p.id]=Array(8).fill(0);});
+
+  rows.forEach((row,ri)=>{
+    if(ri===0) return;
+    const cells=[...row.querySelectorAll('td,th')].map(c=>c.textContent.trim());
+    if(cells.length<22) return;
+    const mat=cells[1], date=cells[2], mrp=cells[3];
+    const qtyRaw=cells[5].replace(/,/g,'');
+    const grdate=cells[21]||'';
+    const qty=parseFloat(qtyRaw)||0;
+    const ftPc=MAT_FT[mat]||0;
+    const useDate=(grdate&&grdate.length>=7)?grdate:date;
+    const ym=useDate.substring(0,7);
+    const mi=MONTHS.indexOf(ym);
+
+    if(mrp==='庫存'&&ftPc>0){
+      result.inventory+=qty*ftPc;
+    } else if(mrp==='PO項目'&&CTI_MATS.includes(mat)&&qty>0){
+      if(!result.cti[ym]) result.cti[ym]=0;
+      result.cti[ym]+=qty*ftPc;
+    } else if(mrp==='工單'&&CY_MATS.includes(mat)&&qty>0){
+      if(!result.cy[ym]) result.cy[ym]=0;
+      result.cy[ym]+=qty*ftPc;
+    } else if((mrp==='OrdRes'||mrp==='DepReq')&&qty<0&&mi>=0){
+      // map material to product - find which products use this material
+      // For now, sum all demand by ft to show in preview
+      if(!result.demand['_ft']) result.demand['_ft']=Array(8).fill(0);
+      result.demand['_ft'][mi]+=Math.abs(qty)*ftPc;
+    }
+  });
+  return result;
+}
+
+// ── File handlers ──
+function handleTUBFile(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false});
+      const hdr=rows[0];
+      const sapIdx=hdr.findIndex(h=>h&&h.toString().includes('SAP'));
+      const qtyIdx=hdr.findIndex(h=>h&&h.toString().includes('數量'));
+      const dateIdx=hdr.findIndex(h=>h&&h.toString().includes('投料'));
+      if(sapIdx<0||qtyIdx<0||dateIdx<0){
+        document.getElementById('status-tub').innerHTML='<div class="alert alert-warn">⚠️ 找不到必要欄位</div>'; return;
+      }
+      const nd={};PRODUCTS.forEach(p=>nd[p.id]=Array(8).fill(0));
+      let count=0;
+      rows.slice(1).forEach(r=>{
+        const sap=(r[sapIdx]||'').toString().trim();
+        const qty=parseFloat((r[qtyIdx]||'').toString().replace(/,/g,''))||0;
+        const ds=(r[dateIdx]||'').toString();
+        if(!sap||!qty||!ds)return;
+        const d=new Date(ds); if(isNaN(d.getTime()))return;
+        const ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const mi=MONTHS.indexOf(ym); if(mi<0)return;
+        if(nd[sap]!==undefined){nd[sap][mi]+=qty;count++;}
+      });
+      demandData=nd; save('demand',demandData); buildDemandGrid();
+      document.getElementById('status-tub').innerHTML=`<div class="alert alert-ok">✅ 成功讀取 ${file.name}，共 ${count} 筆</div>`;
+      const zone=document.getElementById('upload-zone-tub');
+      zone.classList.add('success'); zone.innerHTML=`<div class="upload-icon">✅</div><div>${file.name}</div>`;
+    }catch(err){document.getElementById('status-tub').innerHTML='<div class="alert alert-warn">⚠️ 讀取失敗：'+err.message+'</div>';}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handleMHTDemand(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const result=parseMHT(ev.target.result);
+      // Show ft demand preview
+      const ftDemand=result.demand['_ft']||Array(8).fill(0);
+      let html=`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">需求合計（OrdRes + DepReq，ft）</div>`;
+      html+=`<div class="param-grid" style="margin-bottom:4px"><div class="param-lbl">總需求(ft)</div>`;
+      ftDemand.forEach((v,i)=>{ html+=`<div class="result-cell">${Math.round(v).toLocaleString()}</div>`; });
+      html+=`</div>`;
+      document.getElementById('demand-mht-preview').innerHTML=html;
+      document.getElementById('status-mht-d').innerHTML=`<div class="alert alert-ok">✅ 成功解析 ${file.name}</div>`;
+      const zone=document.getElementById('upload-zone-mht-d');
+      zone.classList.add('success'); zone.innerHTML=`<div class="upload-icon">✅</div><div>${file.name}</div>`;
+      // Store ft demand for calculation
+      window._mhtDemandFt=ftDemand;
+    }catch(err){document.getElementById('status-mht-d').innerHTML='<div class="alert alert-warn">⚠️ 解析失敗：'+err.message+'</div>';}
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+function handleMHTSupply(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const result=parseMHT(ev.target.result);
+      // Apply CTI
+      MONTHS.forEach((m,i)=>{
+        if(result.cti[m]!==undefined&&result.cti[m]>0){
+          ctiSupply[i]=result.cti[m]; ctiFromSAP[i]=result.cti[m];
+        } else { ctiFromSAP[i]=false; }
+      });
+      // Apply CY
+      MONTHS.forEach((m,i)=>{
+        if(result.cy[m]!==undefined&&result.cy[m]>0){
+          cyFromSAP[i]=result.cy[m];
+        } else { cyFromSAP[i]=false; }
+      });
+      // Apply inventory
+      if(result.inventory>0){
+        document.getElementById('init-inv').value=Math.round(result.inventory);
+      }
+      save('cti',ctiSupply); save('cti_sap',ctiFromSAP); save('cy_sap',cyFromSAP);
+      buildSupplyGrid();
+      document.getElementById('status-mht-s').innerHTML=`<div class="alert alert-ok">✅ 成功解析 ${file.name}｜期初庫存 ${Math.round(result.inventory).toLocaleString()} ft</div>`;
+      const zone=document.getElementById('upload-zone-mht-s');
+      zone.classList.add('success'); zone.innerHTML=`<div class="upload-icon">✅</div><div>${file.name}｜CTI 已帶入，CY 已帶入，期初庫存已更新</div>`;
+    }catch(err){document.getElementById('status-mht-s').innerHTML='<div class="alert alert-warn">⚠️ 解析失敗：'+err.message+'</div>';}
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+// ── Calculation ──
+const ftPerShort=9.996833;
+function calculate(){
+  const initInv=parseFloat(document.getElementById('init-inv').value)||1943823;
+  const cyStartDate=new Date(document.getElementById('cy-start-date').value||'2026-06-24');
+  const cySupplyArr=getCYSupply();
+
+  let cy_d=[],cti_ls=[],bj_d=[],ml_d=[];
+  let ctiBalance=initInv, ctiRolling=[], cyRolling=[];
+  orderData=[];
+
+  MONTHS.forEach((m,i)=>{
+    const mDate=new Date(m+'-01');
+    const isBeforeCY=mDate<cyStartDate;
+    const cyBudget=isBeforeCY?0:cySupplyArr[i]/ftPerShort;
+    let cum=0,cyFt=0,ctiLsFt=0;
+
+    ['PB224SV1','PB224BV1'].forEach(pid=>{
+      const qty=(demandData[pid]||[])[i]||0; if(!qty)return;
+      const p=PRODUCTS.find(x=>x.id===pid);
+      if(cum+qty<=cyBudget){cyFt+=qty*ftPerShort;cum+=qty;orderData.push({月份:m,SAP品號:pid,系列:'LS',數量:qty,來源:'CY',替代料號:p.ref_cy});}
+      else{ctiLsFt+=qty*ftPerShort;cum+=qty;orderData.push({月份:m,SAP品號:pid,系列:'LS',數量:qty,來源:'CTI',替代料號:p.ref_cti});}
+    });
+
+    ['PB424SV1','PR524SV2','PR524SV4','PR524BV2','PR524BV4','AE711SF1','AE711SF2'].forEach(pid=>{
+      const qty=(demandData[pid]||[])[i]||0; if(!qty)return;
+      const p=PRODUCTS.find(x=>x.id===pid);
+      const ft=qty*p.ft;
+      if(p.series==='BJ') bj_d[i]=(bj_d[i]||0)+ft;
+      else if(p.series==='ML') ml_d[i]=(ml_d[i]||0)+ft;
+      else ctiLsFt+=ft;
+      orderData.push({月份:m,SAP品號:pid,系列:p.series,數量:qty,來源:'CTI',替代料號:p.ref_cti});
+    });
+
+    const bjFt=['PR524SV2','PR524SV4','PR524BV2','PR524BV4'].reduce((s,pid)=>s+((demandData[pid]||[])[i]||0)*PRODUCTS.find(x=>x.id===pid).ft,0);
+    const mlFt=['AE711SF1','AE711SF2'].reduce((s,pid)=>s+((demandData[pid]||[])[i]||0)*PRODUCTS.find(x=>x.id===pid).ft,0);
+    bj_d[i]=bjFt; ml_d[i]=mlFt;
+    const ctiTotal=ctiLsFt+bjFt+mlFt;
+    ctiBalance=ctiBalance+ctiSupply[i]-ctiTotal;
+    cy_d.push(cyFt); cti_ls.push(ctiLsFt);
+    ctiRolling.push(ctiBalance);
+    cyRolling.push(cySupplyArr[i]-cyFt);
+  });
+
+  calcResult={cy_d,cti_ls,bj_d,ml_d,ctiRolling,cyRolling,initInv,cySupplyArr};
+  buildBalanceTable(); buildOrderFilter(); renderOrders(); showPage('balance');
+}
+
+// ── Balance table ──
+function K(v){return Math.round(v/1000)+'K';}
+function balCls(v){return v<0?'bal-neg':v<300000?'bal-warn':'bal-ok';}
+
+function buildBalanceTable(){
+  if(!calcResult)return;
+  const{cy_d,cti_ls,bj_d,ml_d,ctiRolling,cyRolling,initInv,cySupplyArr}=calcResult;
+  const totalCti=cti_ls.reduce((s,v)=>s+v,0)+bj_d.reduce((s,v)=>s+v,0)+ml_d.reduce((s,v)=>s+v,0);
+  const totalCy=cy_d.reduce((s,v)=>s+v,0);
+  const minCti=Math.min(...ctiRolling);
+  const minCy=Math.min(...cyRolling);
+  document.getElementById('balance-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">CTI 總需求</div><div class="stat-val">${K(totalCti)}</div><div class="stat-sub">ft 全期</div></div>
+    <div class="stat-card"><div class="stat-label">CY 總供給</div><div class="stat-val" style="color:var(--green)">${K(totalCy)}</div><div class="stat-sub">ft 全期</div></div>
+    <div class="stat-card"><div class="stat-label">CTI 最低結餘</div><div class="stat-val"><span class="${balCls(minCti)}" style="padding:2px 6px;border-radius:4px">${K(minCti)}</span></div><div class="stat-sub">滾動最低點</div></div>
+    <div class="stat-card"><div class="stat-label">CY 最低月結餘</div><div class="stat-val"><span class="${balCls(minCy)}" style="padding:2px 6px;border-radius:4px">${K(minCy)}</span></div><div class="stat-sub">產能剩餘最低</div></div>`;
+
+  const alerts=[];
+  if(minCti<0) alerts.push({type:'warn',msg:`⚠️ CTI 某月份出現缺口（${K(minCti)} ft）`});
+  else if(minCti<300000) alerts.push({type:'warn',msg:`⚡ CTI 結餘最低 ${K(minCti)} ft，供給偏緊`});
+  if(minCy<0) alerts.push({type:'warn',msg:`⚠️ CY 某月產能不足`});
+  if(!alerts.length) alerts.push({type:'ok',msg:'✅ CTI 和 CY 供給全程足夠，無缺口'});
+  document.getElementById('balance-alerts').innerHTML=alerts.map(a=>`<div class="alert alert-${a.type}">${a.msg}</div>`).join('');
+
+  let html=`<thead><tr><th class="lbl" style="min-width:160px">供需平衡表</th><th class="inv-cell" style="min-width:72px">前期庫存</th>${MHDRS.map(m=>`<th style="min-width:64px">${m}</th>`).join('')}</tr></thead><tbody>`;
+  html+=`<tr class="sec-hdr"><td colspan="10">需求（ft）</td></tr>`;
+  html+=`<tr><td class="sublbl">LS PB224 → <span class="cy-text">CY</span></td><td class="inv-cell">—</td>`;
+  cy_d.forEach(v=>html+=`<td class="${v>0?'cy-text':''}">${v>0?'-'+K(v):'0'}</td>`);
+  html+=`</tr><tr><td class="sublbl">LS PB224 → <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  cti_ls.forEach((v,i)=>{const ls=v-((demandData['PB424SV1']||[])[i]||0)*14.996833;html+=`<td class="${ls>0?'cti-text':''}">${ls>0?'-'+K(ls):'0'}</td>`;});
+  html+=`</tr><tr><td class="sublbl">LS PB424 → <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  MONTHS.forEach((m,i)=>{const v=((demandData['PB424SV1']||[])[i]||0)*14.996833;html+=`<td class="${v>0?'cti-text':''}">${v>0?'-'+K(v):'0'}</td>`;});
+  html+=`</tr><tr><td class="sublbl">BJ（PR524）→ <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  bj_d.forEach(v=>html+=`<td class="${v>0?'cti-text':''}">${v>0?'-'+K(v):'0'}</td>`);
+  html+=`</tr><tr><td class="sublbl">ML（AE711）→ <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  ml_d.forEach(v=>html+=`<td class="${v>0?'cti-text':''}">${v>0?'-'+K(v):'0'}</td>`);
+  html+=`</tr><tr class="sec-hdr"><td colspan="10">供給（ft）</td></tr>`;
+  html+=`<tr><td class="sublbl">供給－CTI（下限）</td><td class="inv-cell">—</td>`;
+  ctiSupply.forEach((v,i)=>html+=`<td class="cti-text">${K(v)}${ctiFromSAP[i]?'<span class="tag-sap">SAP</span>':''}</td>`);
+  html+=`</tr><tr><td class="sublbl">供給－CY</td><td class="inv-cell">—</td>`;
+  cySupplyArr.forEach((v,i)=>html+=`<td class="cy-text">${i===0?'—':K(v)}${cyFromSAP[i]?'<span class="tag-sap">SAP</span>':'<span class="tag-calc">計算</span>'}</td>`);
+  html+=`</tr><tr class="sec-hdr"><td colspan="10">結餘（滾動）</td></tr>`;
+  html+=`<tr><td class="lbl">CTI 結餘</td><td class="inv-cell cti-text">${K(calcResult.initInv)}</td>`;
+  ctiRolling.forEach(v=>html+=`<td class="${balCls(v)}">${K(v)}</td>`);
+  html+=`</tr><tr><td class="lbl">CY 結餘</td><td class="inv-cell">—</td>`;
+  cyRolling.forEach((v,i)=>html+=`<td class="${balCls(v)}">${i===0?K(v)+'*':K(v)}</td>`);
+  html+=`</tr></tbody>`;
+  document.getElementById('balance-table').innerHTML=html;
+  document.getElementById('balance-note').innerHTML='* CTI 結餘採滾動計算。CY 結餘 = 當月產能 − CY分配量。SAP = SAP自動帶入；計算 = 由參數公式計算。';
+}
+
+// ── Orders ──
+function buildOrderFilter(){
+  const sel=document.getElementById('order-filter-month');
+  const months=[...new Set(orderData.map(r=>r.月份))].sort();
+  sel.innerHTML='<option value="">全部月份</option>';
+  months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});
+}
+
+function renderOrders(){
+  const mf=document.getElementById('order-filter-month').value;
+  const sf=document.getElementById('order-filter-source').value;
+  let data=orderData;
+  if(mf) data=data.filter(r=>r.月份===mf);
+  if(sf) data=data.filter(r=>r.來源===sf);
+  if(!data.length){document.getElementById('orders-content').innerHTML=`<div class="empty-state"><div class="empty-icon">📑</div><div class="empty-title">無符合資料</div></div>`;return;}
+  let html=`<table class="order-tbl"><thead><tr><th>月份</th><th>SAP品號</th><th>系列</th><th style="text-align:right">數量(pcs)</th><th>吸煙管來源</th><th>替代料號</th></tr></thead><tbody>`;
+  data.forEach(r=>{html+=`<tr><td class="mono">${r.月份}</td><td><strong>${r.SAP品號}</strong></td><td><span class="badge-series">${r.系列}</span></td><td style="text-align:right" class="mono">${r.數量.toLocaleString()}</td><td><span class="${r.來源==='CY'?'badge-source-cy':'badge-source-cti'}">${r.來源==='CY'?'CY 廠內':'CTI 廠外'}</span></td><td style="color:var(--text3);font-size:11px">${r.替代料號}</td></tr>`;});
+  html+=`</tbody></table>`;
+  document.getElementById('orders-content').innerHTML=html;
+}
+
+// ── Export ──
+function exportExcel(){
+  if(!calcResult){alert('請先執行計算');return;}
+  const wb=XLSX.utils.book_new();
+  const{cy_d,cti_ls,bj_d,ml_d,ctiRolling,cyRolling,initInv,cySupplyArr}=calcResult;
+  const bal=[['供需平衡表','前期庫存',...MHDRS]];
+  bal.push(['LS CY需求(ft)','—',...cy_d.map(v=>Math.round(v))]);
+  bal.push(['LS CTI需求(ft)','—',...cti_ls.map(v=>Math.round(v))]);
+  bal.push(['BJ CTI需求(ft)','—',...bj_d.map(v=>Math.round(v))]);
+  bal.push(['ML CTI需求(ft)','—',...ml_d.map(v=>Math.round(v))]);
+  bal.push(['供給-CTI(ft)','—',...ctiSupply.map(v=>Math.round(v))]);
+  bal.push(['供給-CY(ft)','—',...cySupplyArr.map(v=>Math.round(v))]);
+  bal.push(['CTI結餘(ft)',Math.round(initInv),...ctiRolling.map(v=>Math.round(v))]);
+  bal.push(['CY結餘(ft)','—',...cyRolling.map(v=>Math.round(v))]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(bal),'供需平衡表');
+  const ord=[['月份','SAP品號','系列','數量(pcs)','吸煙管來源','替代料號']];
+  orderData.forEach(r=>ord.push([r.月份,r.SAP品號,r.系列,r.數量,r.來源==='CY'?'CY 廠內':'CTI 廠外',r.替代料號]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ord),'工單分配');
+  const dem=[['SAP品號',...MHDRS]];
+  PRODUCTS.forEach(p=>dem.push([p.id,...(demandData[p.id]||Array(8).fill(0)).map(v=>Math.round(v))]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dem),'需求輸入');
+  const cyP=[['參數',...MHDRS]];
+  cyP.push(['工時/天',...cyParams.working_hrs]);
+  cyP.push(['工作天數',...cyParams.working_days]);
+  cyP.push(['OEE',...cyParams.oee.map(v=>(v*100).toFixed(1)+'%')]);
+  cyP.push(['產速(m/min)',...cyParams.speed_m_min]);
+  cyP.push(['開機台數',...cyParams.machines]);
+  cyP.push(['計算產能(ft)',...cySupplyArr.map(v=>Math.round(v))]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cyP),'CY產能參數');
+  XLSX.writeFile(wb,'吸煙管供需分配_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ── Init ──
+buildDemandGrid();
+buildSupplyGrid();
+</script>
+</body>
+</html>
