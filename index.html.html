@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>吸煙管供需分配系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F5F4F0;
+    --bg2: #ECEAE4;
+    --bg3: #E2E0D8;
+    --surface: #FFFFFF;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --text: #1A1A18;
+    --text2: #5A5A56;
+    --text3: #9A9A94;
+    --blue: #185FA5;
+    --blue-bg: #E6F1FB;
+    --blue-text: #0C447C;
+    --green: #0F6E56;
+    --green-bg: #EAF3DE;
+    --green-text: #27500A;
+    --amber: #854F0B;
+    --amber-bg: #FAEEDA;
+    --red: #A32D2D;
+    --red-bg: #FCEBEB;
+    --warn-bg: #FFF8E1;
+    --warn-text: #7A5000;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans TC', sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .shell { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 0.5px solid var(--border2);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 20px 20px 16px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .sidebar-logo .logo-mark {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-logo .logo-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .sidebar-nav { padding: 12px 10px; flex: 1; }
+
+  .nav-section {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    padding: 8px 10px 4px;
+    text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active { background: var(--bg2); color: var(--text); font-weight: 500; }
+
+  .nav-item .nav-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    padding: 14px 20px;
+    border-top: 0.5px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .main { flex: 1; padding: 28px 32px; max-width: 1100px; overflow-x: hidden; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Page header ── */
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .page-desc { font-size: 13px; color: var(--text2); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 14px;
+  }
+
+  /* ── Stat cards ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .stat-val { font-size: 20px; font-weight: 500; font-family: 'IBM Plex Mono', monospace; }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 7px 14px;
+    font-size: 12px;
+    font-family: 'IBM Plex Sans TC', sans-serif;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+  .btn-primary:hover { opacity: 0.85; background: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+  .actions { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+
+  /* ── Input mode tabs ── */
+  .mode-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .mode-tab {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border2);
+    background: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: 'IBM Plex Sans TC', sans-serif;
+    transition: all 0.15s;
+  }
+  .mode-tab.active { background: var(--text); color: var(--surface); border-color: var(--text); }
+
+  /* ── Upload ── */
+  .upload-zone {
+    border: 1px dashed var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text2);
+  }
+  .upload-zone:hover { background: var(--bg); }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-hint { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .upload-success { font-size: 12px; color: var(--green); margin-top: 8px; font-weight: 500; }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td {
+    padding: 6px 10px;
+    border: 0.5px solid var(--border);
+    text-align: right;
+    white-space: nowrap;
+  }
+  th {
+    background: var(--bg2);
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  th.lbl, td.lbl { text-align: left; }
+  td.sublbl { text-align: left; color: var(--text2); padding-left: 18px; font-size: 11px; }
+  tr:hover td { background: var(--bg); }
+
+  .sec-hdr td {
+    background: #1e1e1e;
+    color: #ccc;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    border-color: #1e1e1e;
+  }
+
+  .cy-text { color: var(--green); font-weight: 500; }
+  .cti-text { color: var(--blue); font-weight: 500; }
+  .bal-ok { background: var(--green-bg); color: var(--green-text); font-weight: 500; font-family: 'IBM Plex Mono', monospace; }
+  .bal-warn { background: var(--warn-bg); color: var(--warn-text); font-weight: 500; font-family: 'IBM Plex Mono', monospace; }
+  .bal-neg { background: var(--red-bg); color: var(--red); font-weight: 500; font-family: 'IBM Plex Mono', monospace; }
+  .inv-cell { background: var(--bg2); font-family: 'IBM Plex Mono', monospace; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── Demand grid ── */
+  .demand-grid { display: grid; grid-template-columns: 130px repeat(8, 1fr); gap: 4px; align-items: center; margin-bottom: 4px; }
+  .demand-grid input { padding: 5px 6px; font-size: 11px; text-align: right; font-family: 'IBM Plex Mono', monospace; width: 100%; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+  .demand-grid input:focus { outline: none; border-color: var(--blue); }
+  .row-lbl { font-size: 11px; color: var(--text2); font-weight: 500; }
+  .row-lbl .badge { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; margin-left: 4px; }
+  .badge-cy { background: var(--green-bg); color: var(--green-text); }
+  .badge-cti { background: var(--blue-bg); color: var(--blue-text); }
+  .month-hdr { font-size: 10px; color: var(--text3); text-align: center; font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── Supply grid ── */
+  .supply-grid { display: grid; grid-template-columns: 130px repeat(8, 1fr); gap: 4px; align-items: center; margin-bottom: 4px; }
+  .supply-grid input { padding: 5px 6px; font-size: 11px; text-align: right; font-family: 'IBM Plex Mono', monospace; width: 100%; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+  .supply-grid input:focus { outline: none; border-color: var(--blue); }
+  .supply-grid input:disabled { background: var(--bg2); color: var(--text3); }
+
+  /* ── Order table ── */
+  .order-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .order-tbl th, .order-tbl td { padding: 6px 10px; border-bottom: 0.5px solid var(--border); text-align: left; }
+  .order-tbl th { background: var(--bg2); font-weight: 500; font-size: 11px; color: var(--text2); }
+  .order-tbl tr:hover td { background: var(--bg); }
+  .badge-source-cy { background: var(--green-bg); color: var(--green-text); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; }
+  .badge-source-cti { background: var(--blue-bg); color: var(--blue-text); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; }
+  .badge-series { background: var(--bg2); color: var(--text2); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+
+  /* ── Alert bar ── */
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .alert-warn { background: var(--warn-bg); color: var(--warn-text); border: 0.5px solid #E0C040; }
+  .alert-ok { background: var(--green-bg); color: var(--green-text); border: 0.5px solid #90C060; }
+  .alert-info { background: var(--blue-bg); color: var(--blue-text); border: 0.5px solid #85B7EB; }
+
+  /* ── Settings ── */
+  .settings-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+  .settings-label { flex: 1; }
+  .settings-label strong { font-size: 13px; font-weight: 500; display: block; margin-bottom: 2px; }
+  .settings-label span { font-size: 11px; color: var(--text3); }
+  .settings-row input[type=number] { width: 120px; padding: 6px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+  .settings-row input:focus { outline: none; border-color: var(--blue); }
+
+  /* ── Rule chips ── */
+  .rules { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .rule-chip { padding: 5px 10px; border-radius: 20px; font-size: 11px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); }
+
+  /* ── Empty state ── */
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--text3); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-title { font-size: 14px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+  .empty-desc { font-size: 12px; }
+
+  .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
+  .text-muted { color: var(--text3); font-size: 11px; margin-top: 8px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">TUB PLANNER</div>
+    <div class="logo-title">吸煙管供需<br>分配系統</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">設定</div>
+    <button class="nav-item active" onclick="showPage('demand')" id="nav-demand">
+      <span class="nav-icon">📋</span> 需求輸入
+    </button>
+    <button class="nav-item" onclick="showPage('supply')" id="nav-supply">
+      <span class="nav-icon">⚙️</span> 供給設定
+    </button>
+    <div class="nav-section" style="margin-top:8px">結果</div>
+    <button class="nav-item" onclick="showPage('balance')" id="nav-balance">
+      <span class="nav-icon">📊</span> 供需平衡表
+    </button>
+    <button class="nav-item" onclick="showPage('orders')" id="nav-orders">
+      <span class="nav-icon">📑</span> 工單分配清單
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div>v1.0 · 2026</div>
+    <div style="margin-top:2px">資料存於本機瀏覽器</div>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main class="main">
+
+  <!-- ── Page: Demand ── -->
+  <div class="page active" id="page-demand">
+    <div class="page-header">
+      <div class="page-title">需求輸入</div>
+      <div class="page-desc">輸入各產品每月生產需求（pcs），支援手動輸入或上傳 Excel 排程檔。</div>
+    </div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="modetab-manual" onclick="setMode('manual')">手動輸入</button>
+      <button class="mode-tab" id="modetab-upload" onclick="setMode('upload')">上傳 Excel</button>
+    </div>
+
+    <!-- Manual input -->
+    <div id="panel-manual">
+      <div class="card">
+        <div class="card-title">各產品月度需求（pcs）</div>
+        <div style="margin-bottom:8px">
+          <div class="demand-grid" id="demand-hdr"></div>
+        </div>
+        <div id="demand-rows"></div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="calculate()">▶ 計算分配</button>
+          <button class="btn" onclick="resetDemand()">↺ 重設預設值</button>
+          <button class="btn" onclick="clearDemand()">✕ 清空</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div id="panel-upload" style="display:none">
+      <div class="card">
+        <div class="card-title">上傳 Excel 排程檔</div>
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">📂</div>
+          <div>點擊選擇檔案</div>
+          <div class="upload-hint">支援 .xlsx 格式 · 依「預計投料日期」欄位加總 · 2026/05–2026/12</div>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFile(event)">
+        <div id="upload-status"></div>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="calculate()">▶ 計算分配</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">目前需求資料預覽</div>
+        <div class="demand-grid" id="demand-hdr2"></div>
+        <div id="demand-rows2"></div>
+      </div>
+    </div>
+
+    <!-- Rules reminder -->
+    <div class="card">
+      <div class="card-title">分配規則</div>
+      <div class="rules">
+        <span class="rule-chip">🟢 PB224SV1 / PB224BV1 → CY 或 CTI</span>
+        <span class="rule-chip">🔵 PB424SV1 → CTI only（長線）</span>
+        <span class="rule-chip">🔵 PR524 系列（BJ）→ CTI only</span>
+        <span class="rule-chip">🔵 AE711 系列（ML）→ CTI only</span>
+        <span class="rule-chip">📅 6/24 前全部走 CTI，6/24 後 CY 開始供給</span>
+        <span class="rule-chip">⚡ CY 產能優先分配給短線，不足部分再由 CTI 補</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Page: Supply ── -->
+  <div class="page" id="page-supply">
+    <div class="page-header">
+      <div class="page-title">供給設定</div>
+      <div class="page-desc">設定 CTI 和 CY 每月供給量，調整後重新計算即可更新結果。</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">基本設定</div>
+      <div class="settings-row">
+        <div class="settings-label">
+          <strong>CTI 期初庫存（ft）</strong>
+          <span>分配計算的滾動結餘起始值</span>
+        </div>
+        <input type="number" id="init-inv" value="1943823" step="1000">
+      </div>
+      <div class="settings-row" style="border:none">
+        <div class="settings-label">
+          <strong>CY 開始供給日期</strong>
+          <span>此日期前的工單全部指定 CTI</span>
+        </div>
+        <input type="text" id="cy-start-date" value="2026-06-24" style="width:120px;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius)">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">CTI 月供給量（ft）</div>
+      <div class="supply-grid" id="supply-hdr-cti"></div>
+      <div id="supply-row-cti"></div>
+      <div class="text-muted">來源：CTI 回饋每月可供量（下限）</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">CY 押出機月產能（ft）</div>
+      <div class="supply-grid" id="supply-hdr-cy"></div>
+      <div id="supply-row-cy"></div>
+      <div class="text-muted">依開機台數 × OEE × 產速 × 工作天數計算。5月 CY 尚未開始供給，固定為 0。</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="saveSupplyAndCalc()">▶ 儲存並重新計算</button>
+      <button class="btn" onclick="resetSupply()">↺ 重設預設值</button>
+    </div>
+  </div>
+
+  <!-- ── Page: Balance ── -->
+  <div class="page" id="page-balance">
+    <div class="page-header">
+      <div class="page-title">供需平衡表</div>
+      <div class="page-desc">依需求與供給計算每月 CTI / CY 的分配量與滾動結餘。</div>
+    </div>
+    <div id="balance-alerts"></div>
+    <div class="stats-grid" id="balance-stats"></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" style="margin:0">月度供需明細（單位：ft，K = 千）</div>
+        <button class="btn btn-sm" onclick="exportExcel()">⬇ 匯出 Excel</button>
+      </div>
+      <div class="tbl-wrap">
+        <table id="balance-table">
+          <tbody><tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">尚無資料</div><div class="empty-desc">請先在「需求輸入」頁面計算分配</div></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="text-muted" id="balance-note"></div>
+    </div>
+  </div>
+
+  <!-- ── Page: Orders ── -->
+  <div class="page" id="page-orders">
+    <div class="page-header">
+      <div class="page-title">工單分配清單</div>
+      <div class="page-desc">依月份與交期排序，列出每個產品工單應使用哪種吸煙管來源。</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="order-filter-month" onchange="renderOrders()" style="padding:6px 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:'IBM Plex Sans TC',sans-serif">
+          <option value="">全部月份</option>
+        </select>
+        <select id="order-filter-source" onchange="renderOrders()" style="padding:6px 10px;font-size:12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:'IBM Plex Sans TC',sans-serif">
+          <option value="">全部來源</option>
+          <option value="CY">CY 廠內</option>
+          <option value="CTI">CTI 廠外</option>
+        </select>
+      </div>
+      <button class="btn btn-sm" onclick="exportExcel()">⬇ 匯出 Excel</button>
+    </div>
+    <div class="card">
+      <div id="orders-content">
+        <div class="empty-state">
+          <div class="empty-icon">📑</div>
+          <div class="empty-title">尚無資料</div>
+          <div class="empty-desc">請先在「需求輸入」頁面計算分配</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+const MONTHS = ['2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12'];
+const MHDRS  = ['May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26'];
+
+const PRODUCTS = [
+  {id:'PB224SV1', series:'LS', cyOk:true,  ft:9.996833,  ref_cy:'P315200A0-00 + P315300A0-00', ref_cti:'P314000B0-00 + P314100B0-00'},
+  {id:'PB224BV1', series:'LS', cyOk:true,  ft:9.996833,  ref_cy:'P315200A0-00 + P315300A0-00', ref_cti:'P314000B0-00 + P314100B0-00'},
+  {id:'PB424SV1', series:'LS', cyOk:false, ft:14.996833, ref_cti:'P314000B0-00 + P314200B0-00'},
+  {id:'PR524SV2', series:'BJ', cyOk:false, ft:9.996,     ref_cti:'P307600A0-00'},
+  {id:'PR524SV4', series:'BJ', cyOk:false, ft:9.996,     ref_cti:'P307600A0-00'},
+  {id:'PR524BV2', series:'BJ', cyOk:false, ft:14.994,    ref_cti:'P307700A0-00 + P307600A0-00'},
+  {id:'PR524BV4', series:'BJ', cyOk:false, ft:14.994,    ref_cti:'P307700A0-00 + P307600A0-00'},
+  {id:'AE711SF1', series:'ML', cyOk:false, ft:10.038,    ref_cti:'P307300B0-00 + P307400B0-00(×2)'},
+  {id:'AE711SF2', series:'ML', cyOk:false, ft:14.702,    ref_cti:'P307300B0-00 + P307400B0-00(×3)'},
+];
+
+const DEF_CTI = [155334,1602283,1754882,1602284,1525984,1831181,1922740,1922740];
+const DEF_CY  = [115342,310767,493282,698278,697144,697144,732002,766859];
+const DEF_DEMAND = {
+  'PB224SV1':[12800,97600,76800,102400,96000,76800,12800,165960],
+  'PB224BV1':[0,19200,28800,48000,19200,38400,134400,0],
+  'PB424SV1':[13020,0,12960,0,25920,25920,0,12960],
+  'PR524SV2':[25600,48320,67200,64000,89600,88320,100440,61900],
+  'PR524SV4':[0,0,5760,32640,8160,8160,4920,33720],
+  'PR524BV2':[0,0,4800,0,0,9600,0,4800],
+  'PR524BV4':[0,7200,7200,0,0,0,0,0],
+  'AE711SF1':[0,0,10560,16000,8000,0,0,0],
+  'AE711SF2':[0,4320,4320,4320,8640,0,0,0],
+};
+
+const ftPerShort = 9.996833;
+
+let demandData = loadStorage('demand', JSON.parse(JSON.stringify(DEF_DEMAND)));
+let ctiSupply  = loadStorage('cti', [...DEF_CTI]);
+let cySupply   = loadStorage('cy',  [...DEF_CY]);
+let calcResult = null;
+let orderData  = [];
+let inputMode  = 'manual';
+
+function loadStorage(key, def) {
+  try { const v = localStorage.getItem('tub_'+key); return v ? JSON.parse(v) : def; } catch { return def; }
+}
+function saveStorage(key, val) {
+  try { localStorage.setItem('tub_'+key, JSON.stringify(val)); } catch {}
+}
+
+// ── Navigation ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+}
+
+// ── Input mode ──
+function setMode(m) {
+  inputMode = m;
+  document.getElementById('panel-manual').style.display = m==='manual'?'block':'none';
+  document.getElementById('panel-upload').style.display = m==='upload'?'block':'none';
+  document.getElementById('modetab-manual').classList.toggle('active', m==='manual');
+  document.getElementById('modetab-upload').classList.toggle('active', m==='upload');
+  if(m==='upload') buildPreviewGrid();
+}
+
+// ── Demand grid ──
+function buildDemandGrid() {
+  ['demand-hdr','demand-hdr2'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = '<div></div>';
+    MHDRS.forEach(m => { const d=document.createElement('div'); d.className='month-hdr'; d.textContent=m; el.appendChild(d); });
+  });
+
+  ['demand-rows','demand-rows2'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = '';
+    PRODUCTS.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'demand-grid';
+      row.style.marginBottom = '3px';
+      const lbl = document.createElement('div');
+      lbl.className = 'row-lbl';
+      lbl.innerHTML = p.id + `<span class="badge ${p.cyOk?'badge-cy':'badge-cti'}">${p.cyOk?'CY/CTI':'CTI'}</span>`;
+      row.appendChild(lbl);
+      MONTHS.forEach((m, i) => {
+        const inp = document.createElement('input');
+        inp.type = 'number'; inp.min = 0; inp.step = 1;
+        inp.value = (demandData[p.id]||[])[i] || 0;
+        inp.readOnly = (id === 'demand-rows2');
+        if(id === 'demand-rows2') inp.style.background = 'var(--bg2)';
+        inp.dataset.prod = p.id; inp.dataset.mi = i;
+        inp.addEventListener('change', e => {
+          if(!demandData[e.target.dataset.prod]) demandData[e.target.dataset.prod] = Array(8).fill(0);
+          demandData[e.target.dataset.prod][parseInt(e.target.dataset.mi)] = parseFloat(e.target.value)||0;
+          saveStorage('demand', demandData);
+        });
+        row.appendChild(inp);
+      });
+      el.appendChild(row);
+    });
+  });
+}
+
+function buildPreviewGrid() { buildDemandGrid(); }
+
+function resetDemand() {
+  demandData = JSON.parse(JSON.stringify(DEF_DEMAND));
+  saveStorage('demand', demandData);
+  buildDemandGrid();
+}
+
+function clearDemand() {
+  PRODUCTS.forEach(p => { demandData[p.id] = Array(8).fill(0); });
+  saveStorage('demand', demandData);
+  buildDemandGrid();
+}
+
+// ── Supply grid ──
+function buildSupplyGrid() {
+  ['supply-hdr-cti','supply-hdr-cy'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '<div></div>';
+    MHDRS.forEach(m => { const d=document.createElement('div'); d.className='month-hdr'; d.textContent=m; el.appendChild(d); });
+  });
+
+  // CTI row
+  const ctiEl = document.getElementById('supply-row-cti');
+  ctiEl.innerHTML = '';
+  const ctiRow = document.createElement('div');
+  ctiRow.className = 'supply-grid';
+  const cl = document.createElement('div'); cl.className='row-lbl'; cl.textContent='CTI (ft)'; cl.style.color='var(--blue)';
+  ctiRow.appendChild(cl);
+  MONTHS.forEach((m, i) => {
+    const inp = document.createElement('input'); inp.type='number'; inp.min=0; inp.step=1000;
+    inp.value = Math.round(ctiSupply[i]);
+    inp.addEventListener('change', e => { ctiSupply[i] = parseFloat(e.target.value)||0; });
+    ctiRow.appendChild(inp);
+  });
+  ctiEl.appendChild(ctiRow);
+
+  // CY row
+  const cyEl = document.getElementById('supply-row-cy');
+  cyEl.innerHTML = '';
+  const cyRow = document.createElement('div');
+  cyRow.className = 'supply-grid';
+  const cyl = document.createElement('div'); cyl.className='row-lbl'; cyl.textContent='CY (ft)'; cyl.style.color='var(--green)';
+  cyRow.appendChild(cyl);
+  MONTHS.forEach((m, i) => {
+    const inp = document.createElement('input'); inp.type='number'; inp.min=0; inp.step=1000;
+    inp.value = Math.round(cySupply[i]);
+    if(i===0) inp.disabled = true;
+    inp.addEventListener('change', e => { cySupply[i] = parseFloat(e.target.value)||0; });
+    cyRow.appendChild(inp);
+  });
+  cyEl.appendChild(cyRow);
+}
+
+function resetSupply() {
+  ctiSupply = [...DEF_CTI]; cySupply = [...DEF_CY];
+  saveStorage('cti', ctiSupply); saveStorage('cy', cySupply);
+  buildSupplyGrid();
+}
+
+function saveSupplyAndCalc() {
+  saveStorage('cti', ctiSupply); saveStorage('cy', cySupply);
+  calculate();
+  showPage('balance');
+}
+
+// ── Core calculation ──
+function calculate() {
+  const initInv = parseFloat(document.getElementById('init-inv').value)||1943823;
+  const cyStartDate = new Date(document.getElementById('cy-start-date').value || '2026-06-24');
+
+  let cy_d=[],cti_ls=[],bj_d=[],ml_d=[];
+  let ctiBalance = initInv;
+  let ctiRolling=[], cyRolling=[];
+  orderData = [];
+
+  MONTHS.forEach((m, i) => {
+    const mDate = new Date(m+'-01');
+    const isBeforeCY = mDate < cyStartDate;
+    const cyBudget = isBeforeCY ? 0 : cySupply[i] / ftPerShort;
+    let cum = 0, cyFt = 0, ctiLsFt = 0;
+
+    // CY eligible products
+    ['PB224SV1','PB224BV1'].forEach(pid => {
+      const qty = (demandData[pid]||[])[i]||0;
+      if(!qty) return;
+      const p = PRODUCTS.find(x=>x.id===pid);
+      if(cum+qty <= cyBudget) {
+        cyFt += qty*ftPerShort; cum += qty;
+        orderData.push({月份:m, SAP品號:pid, 系列:'LS', 數量:qty, 來源:'CY', 替代料號:p.ref_cy});
+      } else {
+        ctiLsFt += qty*ftPerShort; cum += qty;
+        orderData.push({月份:m, SAP品號:pid, 系列:'LS', 數量:qty, 來源:'CTI', 替代料號:p.ref_cti});
+      }
+    });
+
+    // CTI only
+    ['PB424SV1','PR524SV2','PR524SV4','PR524BV2','PR524BV4','AE711SF1','AE711SF2'].forEach(pid => {
+      const qty = (demandData[pid]||[])[i]||0;
+      if(!qty) return;
+      const p = PRODUCTS.find(x=>x.id===pid);
+      const ft = qty * p.ft;
+      const series = p.series;
+      if(series==='BJ') { /* bj */ }
+      else if(series==='ML') { /* ml */ }
+      else ctiLsFt += ft;
+      orderData.push({月份:m, SAP品號:pid, 系列:series, 數量:qty, 來源:'CTI', 替代料號:p.ref_cti});
+    });
+
+    // Recalc for balance
+    const bjFt  = ['PR524SV2','PR524SV4','PR524BV2','PR524BV4'].reduce((s,pid)=>s+((demandData[pid]||[])[i]||0)*PRODUCTS.find(x=>x.id===pid).ft, 0);
+    const mlFt  = ['AE711SF1','AE711SF2'].reduce((s,pid)=>s+((demandData[pid]||[])[i]||0)*PRODUCTS.find(x=>x.id===pid).ft, 0);
+    const pb424 = ((demandData['PB424SV1']||[])[i]||0)*14.996833;
+    const ctiTotal = ctiLsFt + bjFt + mlFt;
+    ctiBalance = ctiBalance + ctiSupply[i] - ctiTotal;
+
+    cy_d.push(cyFt);
+    cti_ls.push(ctiLsFt);
+    bj_d.push(bjFt);
+    ml_d.push(mlFt);
+    ctiRolling.push(ctiBalance);
+    cyRolling.push(cySupply[i] - cyFt);
+  });
+
+  calcResult = {cy_d, cti_ls, bj_d, ml_d, ctiRolling, cyRolling, initInv};
+  buildBalanceTable();
+  buildOrderFilter();
+  renderOrders();
+  showPage('balance');
+}
+
+// ── Balance table ──
+function K(v) { return Math.round(v/1000)+'K'; }
+function balCls(v) { return v<0?'bal-neg':v<300000?'bal-warn':'bal-ok'; }
+
+function buildBalanceTable() {
+  if(!calcResult) return;
+  const {cy_d, cti_ls, bj_d, ml_d, ctiRolling, cyRolling, initInv} = calcResult;
+
+  // Stats
+  const totalCti = cti_ls.reduce((s,v)=>s+v,0)+bj_d.reduce((s,v)=>s+v,0)+ml_d.reduce((s,v)=>s+v,0);
+  const totalCy  = cy_d.reduce((s,v)=>s+v,0);
+  const minCti   = Math.min(...ctiRolling);
+  const minCy    = Math.min(...cyRolling);
+  document.getElementById('balance-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">CTI 總需求</div><div class="stat-val">${K(totalCti)}</div><div class="stat-sub">ft（全期）</div></div>
+    <div class="stat-card"><div class="stat-label">CY 總供給</div><div class="stat-val" style="color:var(--green)">${K(totalCy)}</div><div class="stat-sub">ft（全期）</div></div>
+    <div class="stat-card"><div class="stat-label">CTI 最低結餘</div><div class="stat-val ${minCti<0?'':''}"><span class="${balCls(minCti)}" style="padding:2px 6px;border-radius:4px">${K(minCti)}</span></div><div class="stat-sub">滾動最低點</div></div>
+    <div class="stat-card"><div class="stat-label">CY 最低月結餘</div><div class="stat-val"><span class="${balCls(minCy)}" style="padding:2px 6px;border-radius:4px">${K(minCy)}</span></div><div class="stat-sub">產能剩餘最低</div></div>
+  `;
+
+  // Alerts
+  const alerts = [];
+  if(minCti < 0) alerts.push({type:'warn', msg:`⚠️ CTI 在某月份出現缺口（${K(minCti)} ft），請調整供給或排程`});
+  if(minCti >= 0 && minCti < 300000) alerts.push({type:'warn', msg:`⚡ CTI 結餘最低 ${K(minCti)} ft，供給偏緊，建議留意`});
+  if(minCy < 0) alerts.push({type:'warn', msg:`⚠️ CY 某月產能不足`});
+  if(alerts.length===0) alerts.push({type:'ok', msg:'✅ CTI 和 CY 供給全程足夠，無缺口'});
+  document.getElementById('balance-alerts').innerHTML = alerts.map(a=>`<div class="alert alert-${a.type}">${a.msg}</div>`).join('');
+
+  // Table
+  let html = `<thead><tr>
+    <th class="lbl" style="min-width:150px">供需平衡表</th>
+    <th class="inv-cell" style="min-width:72px">前期庫存</th>
+    ${MHDRS.map(m=>`<th style="min-width:64px">${m}</th>`).join('')}
+  </tr></thead><tbody>`;
+
+  html += `<tr class="sec-hdr"><td colspan="10">需求（ft）</td></tr>`;
+
+  html += `<tr><td class="sublbl">LS PB224 → <span class="cy-text">CY</span></td><td class="inv-cell">—</td>`;
+  cy_d.forEach(v => html += `<td class="${v>0?'cy-text':''}">${v>0?'-'+K(v):'0'}</td>`);
+  html += `</tr>`;
+
+  html += `<tr><td class="sublbl">LS PB224 → <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  cti_ls.forEach((v,i) => {
+    const pb424 = ((demandData['PB424SV1']||[])[i]||0)*14.996833;
+    const ls = v - pb424;
+    html += `<td class="${ls>0?'cti-text':''}">${ls>0?'-'+K(ls):'0'}</td>`;
+  });
+  html += `</tr>`;
+
+  html += `<tr><td class="sublbl">LS PB424 → <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  MONTHS.forEach((m,i) => {
+    const v = ((demandData['PB424SV1']||[])[i]||0)*14.996833;
+    html += `<td class="${v>0?'cti-text':''}">${v>0?'-'+K(v):'0'}</td>`;
+  });
+  html += `</tr>`;
+
+  html += `<tr><td class="sublbl">BJ（PR524）→ <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  bj_d.forEach(v => html += `<td class="${v>0?'cti-text':''}">${v>0?'-'+K(v):'0'}</td>`);
+  html += `</tr>`;
+
+  html += `<tr><td class="sublbl">ML（AE711）→ <span class="cti-text">CTI</span></td><td class="inv-cell">—</td>`;
+  ml_d.forEach(v => html += `<td class="${v>0?'cti-text':''}">${v>0?'-'+K(v):'0'}</td>`);
+  html += `</tr>`;
+
+  html += `<tr class="sec-hdr"><td colspan="10">供給（ft）</td></tr>`;
+  html += `<tr><td class="sublbl">供給－CTI（下限）</td><td class="inv-cell">—</td>`;
+  ctiSupply.forEach(v => html += `<td class="cti-text">${K(v)}</td>`);
+  html += `</tr>`;
+  html += `<tr><td class="sublbl">供給－CY</td><td class="inv-cell">—</td>`;
+  cySupply.forEach((v,i) => html += `<td class="cy-text">${i===0?'—*':K(v)}</td>`);
+  html += `</tr>`;
+
+  html += `<tr class="sec-hdr"><td colspan="10">結餘（滾動）</td></tr>`;
+  html += `<tr><td class="lbl">CTI 結餘</td><td class="inv-cell cti-text">${K(calcResult.initInv)}</td>`;
+  ctiRolling.forEach(v => html += `<td class="${balCls(v)}">${K(v)}</td>`);
+  html += `</tr>`;
+  html += `<tr><td class="lbl">CY 結餘</td><td class="inv-cell">—</td>`;
+  cyRolling.forEach((v,i) => html += `<td class="${balCls(v)}">${K(v)}</td>`);
+  html += `</tr></tbody>`;
+
+  document.getElementById('balance-table').innerHTML = html;
+  document.getElementById('balance-note').innerHTML =
+    '* CTI 結餘採滾動計算（前期庫存 ' + K(initInv) + ' 起算）。CY 結餘 = 當月產能 − CY 分配量。May-26 CY 不供給（6/24 前），標示 —*。';
+}
+
+// ── Orders ──
+function buildOrderFilter() {
+  const sel = document.getElementById('order-filter-month');
+  const months = [...new Set(orderData.map(r=>r.月份))].sort();
+  sel.innerHTML = '<option value="">全部月份</option>';
+  months.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o); });
+}
+
+function renderOrders() {
+  const mFilter = document.getElementById('order-filter-month').value;
+  const sFilter = document.getElementById('order-filter-source').value;
+  let data = orderData;
+  if(mFilter) data = data.filter(r=>r.月份===mFilter);
+  if(sFilter) data = data.filter(r=>r.來源===sFilter);
+
+  if(!data.length) {
+    document.getElementById('orders-content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📑</div>
+        <div class="empty-title">無符合資料</div>
+        <div class="empty-desc">請調整篩選條件</div>
+      </div>`;
+    return;
+  }
+
+  let html = `<table class="order-tbl">
+    <thead><tr><th>月份</th><th>SAP品號</th><th>系列</th><th style="text-align:right">數量(pcs)</th><th>吸煙管來源</th><th>替代料號</th></tr></thead>
+    <tbody>`;
+  data.forEach(r => {
+    html += `<tr>
+      <td class="mono">${r.月份}</td>
+      <td><strong>${r.SAP品號}</strong></td>
+      <td><span class="badge-series">${r.系列}</span></td>
+      <td style="text-align:right" class="mono">${r.數量.toLocaleString()}</td>
+      <td><span class="${r.來源==='CY'?'badge-source-cy':'badge-source-cti'}">${r.來源==='CY'?'CY 廠內':'CTI 廠外'}</span></td>
+      <td style="color:var(--text3);font-size:11px">${r.替代料號}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('orders-content').innerHTML = html;
+}
+
+// ── File upload ──
+function handleFile(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
+      const hdr = rows[0];
+      const sapIdx  = hdr.findIndex(h=>h&&h.toString().includes('SAP'));
+      const qtyIdx  = hdr.findIndex(h=>h&&h.toString().includes('數量'));
+      const dateIdx = hdr.findIndex(h=>h&&h.toString().includes('投料'));
+      if(sapIdx<0||qtyIdx<0||dateIdx<0) {
+        document.getElementById('upload-status').innerHTML = '<div class="alert alert-warn">⚠️ 找不到必要欄位（SAP品號 / 數量 / 投料日期）</div>';
+        return;
+      }
+      const newDemand = {};
+      PRODUCTS.forEach(p => newDemand[p.id] = Array(8).fill(0));
+      let count = 0;
+      rows.slice(1).forEach(r => {
+        const sap = (r[sapIdx]||'').toString().trim();
+        const qty = parseFloat((r[qtyIdx]||'').toString().replace(/,/g,''))||0;
+        const ds  = (r[dateIdx]||'').toString();
+        if(!sap||!qty||!ds) return;
+        const d = new Date(ds);
+        if(isNaN(d.getTime())) return;
+        const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const mi = MONTHS.indexOf(ym);
+        if(mi<0) return;
+        if(newDemand[sap]!==undefined) { newDemand[sap][mi]+=qty; count++; }
+      });
+      demandData = newDemand;
+      saveStorage('demand', demandData);
+      buildDemandGrid();
+      document.getElementById('upload-status').innerHTML = `<div class="alert alert-ok">✅ 成功讀取 ${file.name}，共 ${count} 筆記錄</div>`;
+    } catch(err) {
+      document.getElementById('upload-status').innerHTML = '<div class="alert alert-warn">⚠️ 讀取失敗：'+err.message+'</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Export ──
+function exportExcel() {
+  if(!calcResult) { alert('請先執行計算'); return; }
+  const wb = XLSX.utils.book_new();
+  const {cy_d, cti_ls, bj_d, ml_d, ctiRolling, cyRolling, initInv} = calcResult;
+
+  // Balance sheet
+  const bal = [['供需平衡表','前期庫存',...MHDRS]];
+  bal.push(['LS CY需求(ft)', '—', ...cy_d.map(v=>Math.round(v))]);
+  bal.push(['LS CTI需求(ft)', '—', ...cti_ls.map(v=>Math.round(v))]);
+  bal.push(['BJ CTI需求(ft)', '—', ...bj_d.map(v=>Math.round(v))]);
+  bal.push(['ML CTI需求(ft)', '—', ...ml_d.map(v=>Math.round(v))]);
+  bal.push(['供給-CTI(ft)', '—', ...ctiSupply.map(v=>Math.round(v))]);
+  bal.push(['供給-CY(ft)', '—', ...cySupply.map(v=>Math.round(v))]);
+  bal.push(['CTI結餘(ft)', Math.round(initInv), ...ctiRolling.map(v=>Math.round(v))]);
+  bal.push(['CY結餘(ft)', '—', ...cyRolling.map(v=>Math.round(v))]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bal), '供需平衡表');
+
+  // Orders sheet
+  const ord = [['月份','SAP品號','系列','數量(pcs)','吸煙管來源','替代料號']];
+  orderData.forEach(r => ord.push([r.月份, r.SAP品號, r.系列, r.數量, r.來源==='CY'?'CY 廠內':'CTI 廠外', r.替代料號]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ord), '工單分配');
+
+  // Demand sheet
+  const dem = [['SAP品號', ...MHDRS]];
+  PRODUCTS.forEach(p => dem.push([p.id, ...(demandData[p.id]||Array(8).fill(0)).map(v=>Math.round(v))]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dem), '需求輸入');
+
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `吸煙管供需分配_${date}.xlsx`);
+}
+
+// ── Init ──
+buildDemandGrid();
+buildSupplyGrid();
+</script>
+</body>
+</html>
